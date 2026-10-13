@@ -7,7 +7,7 @@ Filter videos and images by **Unknown, None, Low, Medium, High, or Full**, using
 In **Settings → Extensions → Install from URL**, paste:
 
 ```text
-https://github.com/jiwenjimiran/cove-nudity-level/releases/download/v1.1.0/io.github.jiwenjimiran.nudity-level-1.1.0.zip
+https://github.com/jiwenjimiran/cove-nudity-level/releases/download/v1.2.0/io.github.jiwenjimiran.nudity-level-1.2.0.zip
 ```
 
 Alternatively, download the ZIP from [the latest release](https://github.com/jiwenjimiran/cove-nudity-level/releases/latest) and use **Install from ZIP**. Enable the extension and refresh Cove once.
@@ -49,11 +49,11 @@ All remaining labels in the additional models are Neutral with **no nudity signa
 
 Open **Settings → Extensions → Installed** and find the **Nudity Level** settings panel below the extension list. The dedicated **Nudity Level** settings tab remains available too. These settings apply to the whole installation.
 
-- Drag a tag to another bucket, or use its bucket dropdown.
+- Buckets are full-width, collapsible rows. Drag a chip into another row, including its closed header. The chip follows your pointer and the destination highlights. Mouse and touch are supported; Escape cancels the drag. Collapse all reduces scrolling. There are no per-tag dropdowns. Keyboard users can focus a chip and use Alt + Up/Down to move it between levels.
 - Use **Add tag** in any bucket to search the entire tag database by name or alias. Search is paginated; adding an already assigned database tag moves it rather than duplicating it.
-- Remove a tag to stop using it for classification and remove its Full-rule memberships.
-- Use **Add compound rule** to create a named rule targeting None, Low, Medium, High, or Full. **ALL groups** must match; **ANY tag within a group** can match. For example, one group containing Pussy/Asshole and another containing Nipples produces `(Pussy OR Asshole) AND Nipples → Full`.
-- Search configured tags within a group, or use **Add library tag** to search the entire database. Newly added rule-only tags start Neutral with no standalone signal; an existing tag keeps its bucket. Enable the completed rule to apply it. Enabled rules require nonempty groups.
+- Click the x beside a tag to remove its assignment and rule memberships.
+- Rules appear as compact condition-to-result summaries. Choose **Edit** to reveal the WHEN / AND / THEN editor, or **+ New rule** to create a named rule targeting None, Low, Medium, High, or Full. **ALL groups** must match; **ANY tag within a group** can match. For example, one group containing Pussy/Asshole and another containing Nipples produces `(Pussy OR Asshole) AND Nipples → Full`.
+- Use **+ Add tag** inside a condition to open a focused picker. Choose **Search the entire library** to find tags beyond the configured list. Selected alternatives are removable chips. Newly added rule-only tags start Neutral with no standalone signal; an existing tag keeps its bucket. Enable the completed rule to apply it. Enabled rules require nonempty groups.
 - Rules can raise a level or establish None, but cannot lower stronger individual or rule evidence. Tags in the Full bucket qualify independently. The original body Full combination is provided as a default rule; new proxy tags do not automatically join it.
 - Bucket moves preserve rule memberships, which are displayed on each chip. Removing a tag removes its memberships and disables rules left with an empty group.
 - Use **Save** to apply changes, **Cancel** to discard the draft, or **Restore defaults** to replace the draft with the expanded 155 assignments and original Full rule. Restoring defaults still requires Save.
@@ -84,11 +84,11 @@ dotnet run --project tests/Backend/Backend.csproj -c Release -p:CoveCiVersion=tr
 dotnet run --project tests/Backend/Backend.csproj -c Release -p:CoveCiVersion=true -- --fixtures artifacts
 node tests/browser.mjs
 ./scripts/package.ps1
-dotnet run --project tests/Backend/Backend.csproj -c Release -p:CoveCiVersion=true -- --package artifacts/io.github.jiwenjimiran.nudity-level-1.1.0.zip
+dotnet run --project tests/Backend/Backend.csproj -c Release -p:CoveCiVersion=true -- --package artifacts/io.github.jiwenjimiran.nudity-level-1.2.0.zip
 ```
 
 Packaging accepts `-CoveSourceRoot` for an alternative host checkout. The ZIP includes the extension assembly, runtime metadata, manifest, and frontend assets. Host assemblies and development dependencies are excluded. A SHA-256 file is generated beside the ZIP.
 
 Backend checks cover all defaults, Full combinations, AI/manual precedence, settings persistence, missing/renamed tags, SQLite execution, PostgreSQL translation, request authorization, counts/pagination, and preserved query restrictions. If a built sibling `cove_filesizes` checkout exists, the tests also verify composition with its actual query adapter in both orders.
 
-Frontend tests exercise React controlled filter state, saved values, clearing, cleanup, tag movement, library search/pagination, compound rules, save/cancel/defaults, and denied editing. Browser checks compile the actual panel-selection callback and Installed/dedicated panel-rendering code from the sibling Cove checkout, use its real component registry, and load this extension's exported components. They reproduce the old missing-settings bug, verify both fixed entry points and persisted rule creation, and check 360/768/1440-pixel layouts. The fixture substitutes the host card shell and network transport; it does not run the whole Cove application. It writes `artifacts/settings-preview.png`. Package validation loads the extracted ZIP through Cove's isolated extension loader and checks assets, both settings entries, filters, and API routes. Tests do not modify a running library.
+Frontend tests exercise React controlled filter state, saved values, clearing, cleanup, tag movement, library search/pagination, compound rules, save/cancel/defaults, and denied editing. Browser checks compile the actual panel-selection callback and Installed/dedicated panel-rendering code from the sibling Cove checkout, use its real component registry, and load this extension's exported components. They reproduce the old missing-settings bug, verify both fixed entry points, full-width collapsible rows, live pointer previews, closed-row mouse/touch drops, Escape cancellation, chip removal and persisted rule creation, and check 360/768/1440-pixel layouts. The fixture substitutes the host card shell and network transport; it does not run the whole Cove application. It writes `artifacts/settings-preview.png`. Package validation loads the extracted ZIP through Cove's isolated extension loader and checks assets, both settings entries, filters, and API routes. Tests do not modify a running library.

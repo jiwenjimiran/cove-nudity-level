@@ -39,7 +39,7 @@ if (args.Length == 2 && args[0] == "--package") {
         var ui = ((IUIExtension)extension).GetUIManifest();
         if (extension.Id != NudityLevelExtension.ExtensionId || ui.ListFilters.Count != 2 || ui.SettingsTabs.Count != 1 || ui.SettingsPanels.Count != 2 || ui.Slots.Count != 1
             || !ui.SettingsPanels.Any(p => p.TargetTab == "extensions")) throw new Exception("Package manifest/UI contract mismatch.");
-        foreach (var asset in new[] { manifest.JsBundle, manifest.CssBundle, "assets/settings.mjs", "assets/model.mjs", "assets/filters.mjs" }) if (!File.Exists(Path.Combine(destination, asset!))) throw new Exception("Missing asset " + asset);
+        foreach (var asset in new[] { manifest.JsBundle, manifest.CssBundle, "assets/settings.mjs", "assets/model.mjs", "assets/filters.mjs", "assets/drag.mjs" }) if (!File.Exists(Path.Combine(destination, asset!))) throw new Exception("Missing asset " + asset);
         var app = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder().Build();
         ((IApiExtension)extension).MapEndpoints(app);
         if (((Microsoft.AspNetCore.Routing.IEndpointRouteBuilder)app).DataSources.SelectMany(s => s.Endpoints).Count() != 4) throw new Exception("Package settings/search endpoints did not map.");

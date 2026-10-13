@@ -27,7 +27,7 @@ try { [IO.File]::WriteAllBytes($zip, $stream.ToArray()) } finally { $stream.Disp
 $check = [IO.Compression.ZipFile]::OpenRead($zip)
 try {
     if ($check.Entries.Count -lt 9 -or $check.Entries.FullName -contains 'Cove.Data.dll' -or $check.Entries.FullName -contains 'Cove.Sdk.dll') { throw 'Invalid package contents.' }
-    foreach ($required in @('assets/index.mjs', 'assets/settings.mjs', 'assets/filters.mjs', 'assets/model.mjs', 'assets/nudity-level.css', 'extension.json', 'Cove.NudityLevel.dll')) {
+    foreach ($required in @('assets/index.mjs', 'assets/settings.mjs', 'assets/filters.mjs', 'assets/model.mjs', 'assets/drag.mjs', 'assets/nudity-level.css', 'extension.json', 'Cove.NudityLevel.dll')) {
         if ($check.Entries.FullName -notcontains $required) { throw "ZIP is missing $required" }
     }
 } finally { $check.Dispose() }
