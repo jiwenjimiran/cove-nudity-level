@@ -18,8 +18,9 @@ public sealed class NudityLevelExtension : FullExtensionBase, IMiddlewareExtensi
     public override UIManifest GetUIManifest()
     {
         var manifest = ManifestBuilder().AddSettingsTab("extensions/nudity-level", "Nudity Level", icon: "tags",
-            description: "Configure nudity buckets and Full combinations.")
+            description: "Configure nudity buckets and compound rules.")
             .AddSettingsSection("extensions/nudity-level", "Nudity Level", "NuditySettingsPanel")
+            .AddSettingsSection("extensions", "Nudity Level", "NuditySettingsPanel", id: ExtensionId + ":installed-settings")
             .AddSlot("app-floating-ui", "NudityFilters").Build();
         manifest.ListFilters = new[] { "videos", "images" }.Select(kind => new UIListFilterContribution(
             Id: $"{ExtensionId}:nudity:{kind}", EntityType: kind, Label: "Nudity level", CriterionType: "string",
@@ -27,7 +28,7 @@ public sealed class NudityLevelExtension : FullExtensionBase, IMiddlewareExtensi
         return manifest;
     }
     public IEnumerable<PermissionDefinition> ContributePermissions() => [new(WritePermission, "Nudity Level",
-        "Change shared nudity buckets and Full combination rules.", Source: $"extension:{ExtensionId}", GrantToAdminsByDefault: true)];
+        "Change shared nudity buckets and compound rules.", Source: $"extension:{ExtensionId}", GrantToAdminsByDefault: true)];
     public Task InvokeAsync(HttpContext context, RequestDelegate next) => NudityFilterMiddleware.InvokeAsync(context, next);
     public override void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
@@ -40,7 +41,7 @@ public sealed class NudityLevelExtension : FullExtensionBase, IMiddlewareExtensi
         group.MapGet("/defaults", () => Results.Ok(NuditySettings.Defaults())).RequireCovePermission(Permissions.TagsRead);
         group.MapPut("/settings", async (NuditySettings settings, HttpContext http, CancellationToken ct) => {
             try {
-                settings = await SettingsStore.ResolveAsync(http.RequestServices.GetRequiredService<CoveContext>(), settings.Validate(), ct);
+                settings = await SettingsStore.ResolveAsync(http.RequestServices.GetRequiredService<CoveContext>(), settings.Upgrade(), ct);
                 await SettingsStore.SaveAsync(Store, settings, ct);
                 return Results.Ok(settings);
             } catch (ArgumentException ex) { return Results.BadRequest(new { message = ex.Message }); }

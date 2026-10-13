@@ -20,10 +20,14 @@ public static class Classification
     public static string Level(NuditySettings settings, IEnumerable<int> tagIds, bool analyzed)
     {
         var present = tagIds.ToHashSet();
-        var rules = settings.Tags.Where(t => !t.Missing && t.TagId.HasValue && present.Contains(t.TagId.Value)).ToArray();
-        if (rules.Any(t => t.Bucket == "full") || settings.CombinationEnabled && rules.Any(t => t.Genital) && rules.Any(t => t.Nipple)) return "full";
-        foreach (var bucket in new[] { "high", "medium", "low" }) if (rules.Any(t => t.Bucket == bucket)) return bucket;
-        return analyzed || rules.Length > 0 ? "none" : "unknown";
+        var tags = settings.Tags.Where(t => !t.Missing && t.TagId.HasValue && present.Contains(t.TagId.Value)).ToArray();
+        var result = analyzed || tags.Any(t => t.EstablishesCoverage || t.Bucket != "neutral") ? 1 : 0;
+        foreach (var tag in tags) if (tag.Bucket != "neutral") result = Math.Max(result, Array.IndexOf(NuditySettings.Levels, tag.Bucket));
+        if (settings.SchemaVersion == 1 && settings.CombinationEnabled && tags.Any(t => t.Genital) && tags.Any(t => t.Nipple)) result = 5;
+        var keys = tags.Select(t => t.Key).ToHashSet();
+        foreach (var rule in settings.Rules ?? []) if (rule.Enabled && rule.Groups.Count > 0 && rule.Groups.All(g => g.Count > 0 && g.Any(keys.Contains)))
+            result = Math.Max(result, Array.IndexOf(NuditySettings.Levels, rule.Level));
+        return NuditySettings.Levels[result];
     }
 
     public static string FromEvidence(NuditySettings settings, IEnumerable<Evidence> evidence, bool bodyCompleted, IReadOnlySet<string> unsuccessfulRuns)
@@ -32,7 +36,8 @@ public static class Classification
         var rows = evidence.ToArray();
         var ai = rows.Where(e => IsAi(e.SourceKey) && !unsuccessfulRuns.Contains(e.SourceRunId)
             && (configured.Contains(e.TagId) || IsBodyKey(e.ModelKey))).ToArray();
-        if (bodyCompleted || ai.Length > 0) return Level(settings, ai.Select(e => e.TagId), true);
+        var aiLevel = Level(settings, ai.Select(e => e.TagId), bodyCompleted || ai.Any(e => IsBodyKey(e.ModelKey)));
+        if (aiLevel != "unknown") return aiLevel;
         return Level(settings, rows.Where(e => IsManual(e.SourceKey)).Select(e => e.TagId), false);
     }
 

@@ -12,6 +12,18 @@ using Pgvector.EntityFrameworkCore;
 using System.IO.Compression;
 using System.Runtime.Loader;
 
+if (args.Length == 2 && args[0] == "--fixtures") {
+    var folder = Path.GetFullPath(args[1]); Directory.CreateDirectory(folder);
+    var json = new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true };
+    var defaults = NuditySettings.Defaults();
+    defaults = defaults with { Tags = defaults.Tags.Select((t, i) => t with { TagId = i + 1 }).ToList() };
+    File.WriteAllText(Path.Combine(folder, "defaults.json"), JsonSerializer.Serialize(defaults, json));
+    var extension = new NudityLevelExtension();
+    ((IManifestAware)extension).ApplyManifest(JsonSerializer.Deserialize<ExtensionManifestFile>(File.ReadAllText("src/NudityLevel/extension.json"), json)!);
+    File.WriteAllText(Path.Combine(folder, "ui-manifest.json"), JsonSerializer.Serialize(extension.GetUIManifest(), json));
+    Console.WriteLine("Generated actual backend defaults and UI manifest for host rendering checks."); return;
+}
+
 if (args.Length == 2 && args[0] == "--package") {
     var zip = Path.GetFullPath(args[1]);
     var destination = Path.Combine(Path.GetDirectoryName(zip)!, "host-install-" + Guid.NewGuid().ToString("N"));
@@ -25,7 +37,8 @@ if (args.Length == 2 && args[0] == "--package") {
         ((IManifestAware)extension).ApplyManifest(manifest);
         ((IStatefulExtension)extension).SetStore(new MemoryStore());
         var ui = ((IUIExtension)extension).GetUIManifest();
-        if (extension.Id != NudityLevelExtension.ExtensionId || ui.ListFilters.Count != 2 || ui.SettingsTabs.Count != 1 || ui.SettingsPanels.Count != 1 || ui.Slots.Count != 1) throw new Exception("Package manifest/UI contract mismatch.");
+        if (extension.Id != NudityLevelExtension.ExtensionId || ui.ListFilters.Count != 2 || ui.SettingsTabs.Count != 1 || ui.SettingsPanels.Count != 2 || ui.Slots.Count != 1
+            || !ui.SettingsPanels.Any(p => p.TargetTab == "extensions")) throw new Exception("Package manifest/UI contract mismatch.");
         foreach (var asset in new[] { manifest.JsBundle, manifest.CssBundle, "assets/settings.mjs", "assets/model.mjs", "assets/filters.mjs" }) if (!File.Exists(Path.Combine(destination, asset!))) throw new Exception("Missing asset " + asset);
         var app = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder().Build();
         ((IApiExtension)extension).MapEndpoints(app);
@@ -38,7 +51,7 @@ if (args.Length == 2 && args[0] == "--package") {
 
 var passed = 0;
 void Check(bool condition, string message) { if (!condition) throw new Exception(message); passed++; Console.WriteLine("PASS " + message); }
-var settings = NuditySettings.Defaults();
+var settings = NuditySettings.BodyDefaults();
 settings = settings with { Tags = settings.Tags.Select((t, i) => t with { TagId = i + 1 }).ToList() };
 int Id(string name) => settings.Tags.Single(t => t.Name == name).TagId!.Value;
 string Level(params string[] names) => Classification.Level(settings, names.Select(Id), false);
@@ -65,6 +78,48 @@ Check(Classification.FromEvidence(settings, [E("Pussy", model: "custom"), E("Nip
 using (var criterion = JsonDocument.Parse("{\"value\":\"full,high,full\",\"modifier\":\"EQUALS\"}")) Check(NudityFilterMiddleware.Parse(criterion.RootElement).SequenceEqual(new[] { "full", "high" }), "criterion parsing");
 try { using var invalid = JsonDocument.Parse("{\"value\":\"bad\"}"); NudityFilterMiddleware.Parse(invalid.RootElement); throw new Exception("accepted invalid level"); } catch (ArgumentException) { passed++; }
 try { (settings with { Tags = [settings.Tags[0], settings.Tags[0]] }).Validate(); throw new Exception("accepted duplicates"); } catch (ArgumentException) { passed++; }
+
+var v2 = NuditySettings.Defaults();
+v2 = v2 with { Tags = v2.Tags.Select((t, i) => t with { TagId = i + 1 }).ToList() };
+int V2Id(string name) => v2.Tags.Single(t => t.Name == name).TagId!.Value;
+string V2Key(string name) => v2.Tags.Single(t => t.Name == name).Key;
+string V2Level(params string[] names) => Classification.Level(v2, names.Select(V2Id), false);
+Check(v2.Tags.Count == 155 && v2.Tags.Select(t => t.Name).Distinct().Count() == 155, "155 unique model defaults");
+var modelLists = JsonSerializer.Deserialize<Dictionary<string, string[]>>(File.ReadAllText("tests/fixtures/model-tags.json"))!;
+Check(modelLists.Values.SelectMany(names => names).Distinct().Order().SequenceEqual(v2.Tags.Select(t => t.Name).Order()), "all four supplied model lists covered exactly, with 69 deduplicated");
+foreach (var tag in v2.Tags) Check(V2Level(tag.Name) == (tag.Bucket == "neutral" ? tag.EstablishesCoverage ? "none" : "unknown" : tag.Bucket), "v2 individual classification: " + tag.Name);
+Check(V2Level("Pussy", "Nipples") == "full" && V2Level("Asshole", "Nipples") == "full" && V2Level("Pussy Hair", "Nipples") == "high", "v2 preserves body Full combinations and Pussy Hair exception");
+foreach (var name in new[] { "Upskirt", "Undressing", "Sucking Toy/Dildo" }) Check(V2Level(name) == "medium", "requested Medium override: " + name);
+Check(V2Level("Cum on Person") == "high" && V2Level("Cum Swapping") == "high" && V2Level("Catheter") == "full", "requested fluid and catheter overrides");
+Evidence Proxy(string tag, string model, string source = "ext:ai.tagging") => new(1, V2Id(tag), source, model, "");
+Check(Classification.FromEvidence(v2, [Proxy("Vaginal Fucking", "actions")], false, new HashSet<string>()) == "full", "action-only AI sex establishes Full without body analysis");
+Check(Classification.FromEvidence(v2, [Proxy("Missionary", "positions")], false, new HashSet<string>()) == "full", "position-only AI sex establishes Full without body analysis");
+Check(Classification.FromEvidence(v2, [Proxy("Sitting", "positions"), Proxy("Kissing", "actions")], false, new HashSet<string>()) == "unknown", "generic-only nonbody AI stays Unknown");
+Check(Classification.FromEvidence(v2, [Proxy("Sitting", "positions"), Proxy("Boobs", "", "user")], false, new HashSet<string>()) == "medium", "generic AI does not suppress relevant manual fallback");
+Check(Classification.FromEvidence(v2, [Proxy("Doggystyle", "positions")], true, new HashSet<string>()) == "full", "sex proxy overrides completed zero-detection body analysis");
+Check(V2Level("Cum on Person", "Nipples") == "high", "proxy High tags do not automatically join the body Full rule");
+var compound = new CompoundRule("test", "Generic combination", "high", true, [[V2Key("Kissing"), V2Key("Sitting")], [V2Key("Handcuffed")]]);
+var customRules = v2 with { Rules = [compound] };
+Check(Classification.Level(customRules, [V2Id("Sitting"), V2Id("Handcuffed")], false) == "high", "ANY within group and ALL groups produce custom High");
+Check(Classification.Level(customRules, [V2Id("Sitting")], false) == "unknown", "incomplete compound does not establish coverage");
+Check(Classification.Level(customRules with { Rules = [compound with { Level = "none" }] }, [V2Id("Kissing"), V2Id("Handcuffed")], false) == "none", "explicit rule can establish None from generic signals");
+Check(Classification.Level(customRules with { Rules = [compound with { Enabled = false }] }, [V2Id("Kissing"), V2Id("Handcuffed")], false) == "unknown", "disabled compound ignored");
+Check(Classification.Level(customRules, [V2Id("Kissing"), V2Id("Handcuffed"), V2Id("Blowjob")], false) == "full", "compound result cannot lower stronger individual evidence");
+try { (v2 with { Rules = [compound with { Groups = [[]] }] }).Validate(); throw new Exception("accepted enabled empty group"); } catch (ArgumentException) { passed++; }
+try { (v2 with { Rules = [compound with { Groups = [["missing"]] }] }).Validate(); throw new Exception("accepted missing rule tag"); } catch (ArgumentException) { passed++; }
+var legacy = settings with { CombinationEnabled = false, Tags = [..settings.Tags.Where(t => t.Name != "Belly Button"), new("custom:handjob", "Handjob", "low", 999)] };
+var migrated = legacy.Upgrade();
+Check(migrated.SchemaVersion == 2 && migrated.DefaultsRevision == 2 && !migrated.Rules!.Single().Enabled, "v1 settings and disabled combination migrate to v2");
+Check(!migrated.Tags.Any(t => t.Name == "Belly Button") && migrated.Tags.Single(t => t.Name == "Handjob").Bucket == "low", "migration preserves removals and custom proxy assignments");
+var editedLegacy = settings with { Tags = settings.Tags.Select(t => t.Name == "Pussy Hair" ? t with { Genital = true } : t).ToList() };
+Check(editedLegacy.Upgrade().Rules!.Single().Groups[0].Contains("default:pussy hair"), "migration preserves edited legacy combination memberships");
+var emptyLegacy = (settings with { Tags = [] }).Upgrade();
+Check(!emptyLegacy.Rules!.Single().Enabled && emptyLegacy.Tags.Count == 118, "empty legacy combination migrates inactive without resurrecting removed body tags");
+var migrationStore = new MemoryStore();
+await migrationStore.SetAsync("settings", JsonSerializer.Serialize(legacy, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+var loadedMigration = await SettingsStore.LoadAsync(migrationStore);
+await SettingsStore.SaveAsync(migrationStore, loadedMigration with { Tags = loadedMigration.Tags.Where(t => t.Name != "Doggystyle").ToList() }, default);
+Check(!(await SettingsStore.LoadAsync(migrationStore)).Tags.Any(t => t.Name == "Doggystyle"), "new defaults append once; later removals survive reload");
 
 using var connection = new SqliteConnection("Data Source=:memory:"); connection.Open();
 var options = new DbContextOptionsBuilder<CoveContext>().UseSqlite(connection).Options;
@@ -98,10 +153,31 @@ foreach (var kind in new[] { "video", "image" }) {
     using var composed = new NudityReadContext(new DbContextOptionsBuilder<CoveContext>(options).UseModel(db.Model).Options, new CurrentPrincipalAccessor(), narrow, kind, [2, 3]);
     Check(await (kind == "video" ? composed.Videos.Select(v => v.Id) : composed.Images.Select(i => i.Id)).SingleAsync() == 2, kind + " preserves earlier query restrictions");
 }
-var bound = await SettingsStore.ResolveAsync(db, NuditySettings.Defaults());
+var bound = await SettingsStore.ResolveAsync(db, NuditySettings.BodyDefaults());
 Check(bound.Tags.All(t => t.TagId.HasValue && !t.Missing), "default tags bind to database IDs");
 var alias = await SettingsStore.ResolveAsync(db, new(1, true, [new("test", "alias-pussy", "high")]));
 Check(alias.Tags.Single().TagId == Id("Pussy"), "alias resolution");
+var collision = await SettingsStore.ResolveAsync(db, new(2, false,
+    [new("custom:p", "Custom name", "low", Id("Pussy")), new("new:alias", "alias-pussy", "high")],
+    [new("alias-rule", "Alias rule", "high", true, [["new:alias"]])], 2));
+Check(collision.Tags.Count == 1 && collision.Tags.Single().Bucket == "low" && collision.Rules!.Single().Groups[0].Single() == "custom:p",
+    "alias collisions retain existing custom bucket and remap rule references without duplicate assignments");
+// Exercise persisted action-only/generic-only evidence through the same list adapter used in production.
+using (var seed = new DbContext(new DbContextOptionsBuilder().UseSqlite(connection).UseModel(db.Model).Options)) {
+    seed.AddRange(new Tag { Id = 501, Name = "Vaginal Fucking" }, new Tag { Id = 502, Name = "Sitting" });
+    seed.AddRange(new Video { Id = 7 }, new Video { Id = 8 }, new Image { Id = 7 }, new Image { Id = 8 });
+    foreach (var host in new[] { AffinityHostType.Video, AffinityHostType.Image }) {
+        seed.Add(new TagApplication { HostType = host, HostId = 7, TagId = 501, SourceKey = "ext:ai.tagging", ModelKey = "actions" });
+        seed.Add(new TagApplication { HostType = host, HostId = 8, TagId = 502, SourceKey = "ext:ai.tagging", ModelKey = "positions" });
+    }
+    seed.SaveChanges();
+}
+var databaseV2 = await SettingsStore.ResolveAsync(db, NuditySettings.Defaults());
+foreach (var kind in new[] { "video", "image" }) {
+    var levels = await Classification.LoadAsync(db, kind, [7, 8], databaseV2);
+    Check(levels[7] == "full" && levels[8] == "unknown", kind + " persisted action-only Full and generic-only Unknown");
+    Check((await NudityFilterMiddleware.MatchingIdsAsync(db, kind, ["full"], databaseV2)).Contains(7), kind + " proxy evidence enters matching IDs before pagination");
+}
 using (var seed = new DbContext(new DbContextOptionsBuilder().UseSqlite(connection).UseModel(db.Model).Options)) {
     var pussyId = Id("Pussy");
     await seed.Set<Tag>().Where(t => t.Id == pussyId).ExecuteUpdateAsync(update => update.SetProperty(t => t.Name, "Renamed"));
@@ -111,7 +187,7 @@ Check(renamed.Tags.Single(t => t.TagId == Id("Pussy")).Name == "Renamed", "bound
 var missing = await SettingsStore.ResolveAsync(db, new(1, true, [new("missing", "Dick", "full", 999)]));
 Check(missing.Tags.Single().Missing && Classification.Level(missing, [999], false) == "unknown", "deleted custom tags stay missing and do not classify");
 var store = new MemoryStore(); await SettingsStore.SaveAsync(store, settings, default);
-Check((await SettingsStore.LoadAsync(store)).Tags.Count == 37, "versioned settings round trip");
+Check((await SettingsStore.LoadAsync(store)).Tags.Count == 155, "versioned settings round trip and default upgrade");
 
 // Optional integration against the actual sibling Filesizes build, with no public build dependency.
 var filesizesPath = Path.GetFullPath("../cove_filesizes/src/Filesizes/bin/Release/net10.0/Cove.Filesizes.dll");
@@ -145,7 +221,7 @@ async Task<DefaultHttpContext> Request(string body, string kind = "videos") {
     http.Response.Body.Position = 0; return http;
 }
 var response = await Request("{\"objectFilter\":{\"nudityLevelCriterion\":{\"value\":\"full\",\"modifier\":\"EQUALS\"}}}");
-using (var json = await JsonDocument.ParseAsync(response.Response.Body)) Check(json.RootElement.GetProperty("count").GetInt32() == 1, "request adapter applies classification before endpoint");
+using (var json = await JsonDocument.ParseAsync(response.Response.Body)) Check(json.RootElement.GetProperty("count").GetInt32() == 2, "request adapter applies body and proxy classification before endpoint");
 Check(response.RequestServices == services && response.GetEndpoint()!.Metadata.GetMetadata<string>() == "retained", "request services restored and metadata retained");
 Check((await Request("{\"filterExpression\":{\"nudityLevelCriterion\":{\"value\":\"full\"}}}")).Response.StatusCode == 400, "grouped filter rejected");
 Check((await Request("{\"objectFilter\":{\"nudityLevelCriterion\":{\"value\":\"bad\"}}}")).Response.StatusCode == 400, "invalid criterion rejected");
