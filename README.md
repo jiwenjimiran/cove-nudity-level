@@ -4,23 +4,23 @@ Filter videos and images by **Unknown, None, Low, Medium, High, or Full**, using
 
 ## Install
 
-In **Settings → Extensions → Install from URL**, paste:
+In **Settings â†’ Extensions â†’ Install from URL**, paste:
 
 ```text
-https://github.com/jiwenjimiran/cove-nudity-level/releases/download/v1.2.0/io.github.jiwenjimiran.nudity-level-1.2.0.zip
+https://github.com/jiwenjimiran/cove-nudity-level/releases/download/v1.2.1/io.github.jiwenjimiran.nudity-level-1.2.1.zip
 ```
 
 Alternatively, download the ZIP from [the latest release](https://github.com/jiwenjimiran/cove-nudity-level/releases/latest) and use **Install from ZIP**. Enable the extension and refresh Cove once.
 
 ## Filter
 
-Open **Filters → Nudity level** on a video or image list, including drilldowns. Check any combination of levels to match any selected level. Clear all selections for no restriction. Saved filters retain the selections.
+Open **Filters â†’ Nudity level** on a video or image list, including drilldowns. Check any combination of levels to match any selected level. Clear all selections for no restriction. Saved filters retain the selections.
 
 Filtering runs before pagination and preserves native filters, ordering, totals, and drilldown scope. It composes with Filesizes. Use this as a top-level filter on Cove 1.5.1; advanced condition-group placement returns an explanatory error.
 
 ## Default rules
 
-**Pussy + Nipples → Full. Asshole + Nipples → Full. Balls or Dick alone → Full.** The combination is evaluated before choosing the highest individual bucket. Other pussy descriptors in High and Anal Gape also qualify with Nipples.
+**Pussy + Nipples â†’ Full. Asshole + Nipples â†’ Full. Balls or Dick alone â†’ Full.** The combination is evaluated before choosing the highest individual bucket. Other pussy descriptors in High and Anal Gape also qualify with Nipples.
 
 **Pussy Hair is Medium and does not qualify for that combination.** Pussy Hair + Nipples is High.
 
@@ -38,25 +38,27 @@ The defaults cover all **155 unique labels** from `body_20`, `positions_20`, `ac
 
 | Additional level | Proxy defaults |
 |---|---|
-| Full | 69, Doggystyle, Facesitting, Cowgirl, Rev Cowgirl, Missionary, G Missionary, Stand Cradle, Orgy, Anal Fucking, Ass Licking, Ass Penetration, Ball Licking/Sucking, Blowjob, Cumshot, Deepthroat, Double Penetration, Fingering, Fisting, Footjob, Gangbang, Gloryhole, Handjob, Licking Penis, Masturbation, Pussy Licking (Clearly Visible), Pussy Licking, Pussy Rubbing, Titjob, Tribbing/Scissoring, Vaginal Penetration, Vaginal Fucking, Pegging, Anal Hook, Tied Penis, Tied Balls, Catheter |
-| High | Cum on Person, Cum Swapping, Pissing, Wet (Genitals), Vibrating, Chastity, Nipple Clamps, Chastity (Male), Chastity (Female), Metal Chastity, Plastic Chastity, Cum in Chastity, Crotch Roped, Clover Clamps, Clothes Pin, Weights, Alligator Clamp |
-| Medium | Upskirt, Grabbing Ass, Grabbing Boobs, Sucking Toy/Dildo, Undressing, Bondaged Boobs |
+| Full | 69, Doggystyle, Facesitting, Cowgirl, Rev Cowgirl, Missionary, G Missionary, Orgy, Anal Fucking, Ass Licking, Ass Penetration, Ball Licking/Sucking, Blowjob, Cumshot, Deepthroat, Double Penetration, Fingering, Fisting, Gangbang, Handjob, Licking Penis, Masturbation, Pussy Licking (Clearly Visible), Pussy Licking, Titjob, Tribbing/Scissoring, Vaginal Penetration, Vaginal Fucking, Pegging, Anal Hook, Tied Penis, Tied Balls |
+| High | Cum on Person, Cum Swapping, Pissing, Wet (Genitals), Crotch Roped |
+| Medium | Upskirt, Grabbing Ass, Grabbing Boobs, Undressing, Bondaged Boobs |
 | Low | Sucking Fingers |
 
 All remaining labels in the additional models are Neutral with **no nudity signal**: generic poses, camera angles, performer counts, Kissing, Grabbing Hair/Head, non-specific bondage/equipment/torture, and Unused labels. These tags alone remain **Unknown**, including generic-only AI analysis. Neutral is an internal contribution, not a seventh filter level. Completed body analysis can establish **None**; the existing body-neutral tags retain that behavior. Individual buckets and matching rule results compete, with the highest result winning.
 
 ## Customize
 
-Open **Settings → Extensions → Installed** and find the **Nudity Level** settings panel below the extension list. The dedicated **Nudity Level** settings tab remains available too. These settings apply to the whole installation.
+Open **Settings â†’ Extensions â†’ Installed** and find the **Nudity Level** settings panel below the extension list. The dedicated **Nudity Level** settings tab remains available too. These settings apply to the whole installation.
 
 - Buckets are full-width, collapsible rows. Drag a chip into another row, including its closed header. The chip follows your pointer and the destination highlights. Mouse and touch are supported; Escape cancels the drag. Collapse all reduces scrolling. There are no per-tag dropdowns. Keyboard users can focus a chip and use Alt + Up/Down to move it between levels.
 - Use **Add tag** in any bucket to search the entire tag database by name or alias. Search is paginated; adding an already assigned database tag moves it rather than duplicating it.
 - Click the x beside a tag to remove its assignment and rule memberships.
-- Rules appear as compact condition-to-result summaries. Choose **Edit** to reveal the WHEN / AND / THEN editor, or **+ New rule** to create a named rule targeting None, Low, Medium, High, or Full. **ALL groups** must match; **ANY tag within a group** can match. For example, one group containing Pussy/Asshole and another containing Nipples produces `(Pussy OR Asshole) AND Nipples → Full`.
+- Rules appear as compact condition-to-result summaries. Choose **Edit** to reveal the WHEN / AND / THEN editor, or **+ New rule** to create a named rule targeting None, Low, Medium, High, or Full. **ALL groups** must match; **ANY tag within a group** can match. For example, one group containing Pussy/Asshole and another containing Nipples produces `(Pussy OR Asshole) AND Nipples â†’ Full`.
 - Use **+ Add tag** inside a condition to open a focused picker. Choose **Search the entire library** to find tags beyond the configured list. Selected alternatives are removable chips. Newly added rule-only tags start Neutral with no standalone signal; an existing tag keeps its bucket. Enable the completed rule to apply it. Enabled rules require nonempty groups.
 - Rules can raise a level or establish None, but cannot lower stronger individual or rule evidence. Tags in the Full bucket qualify independently. The original body Full combination is provided as a default rule; new proxy tags do not automatically join it.
 - Bucket moves preserve rule memberships, which are displayed on each chip. Removing a tag removes its memberships and disables rules left with an empty group.
 - Use **Save** to apply changes, **Cancel** to discard the draft, or **Restore defaults** to replace the draft with the expanded 155 assignments and original Full rule. Restoring defaults still requires Save.
+
+Version 1.2.1 moves all Chastity variants (including Cum in Chastity), Footjob, Pussy Rubbing, Gloryhole, Stand Cradle, Catheter, Weights, Clover Clamps, Clothes Pin, Alligator Clamp, Vibrating, Nipple Clamps, and Sucking Toy/Dildo to Neutral with no standalone nudity signal. The upgrade updates matching factory assignments once; manually moved/custom assignments, removed tags, bound IDs, and compound rules are preserved.
 
 Upgrading from v1.0.0 adds the new model defaults once and converts the saved genital/nipple combination into an equivalent compound rule. Existing bucket edits, body-tag removals, custom assignments, bound IDs, and disabled/edited combination settings are preserved. After migration, removing a new default stays removed across reloads. Configurations use schema v2 and a defaults revision; the settings endpoints continue to accept v1 configurations for migration.
 
@@ -84,7 +86,7 @@ dotnet run --project tests/Backend/Backend.csproj -c Release -p:CoveCiVersion=tr
 dotnet run --project tests/Backend/Backend.csproj -c Release -p:CoveCiVersion=true -- --fixtures artifacts
 node tests/browser.mjs
 ./scripts/package.ps1
-dotnet run --project tests/Backend/Backend.csproj -c Release -p:CoveCiVersion=true -- --package artifacts/io.github.jiwenjimiran.nudity-level-1.2.0.zip
+dotnet run --project tests/Backend/Backend.csproj -c Release -p:CoveCiVersion=true -- --package artifacts/io.github.jiwenjimiran.nudity-level-1.2.1.zip
 ```
 
 Packaging accepts `-CoveSourceRoot` for an alternative host checkout. The ZIP includes the extension assembly, runtime metadata, manifest, and frontend assets. Host assemblies and development dependencies are excluded. A SHA-256 file is generated beside the ZIP.

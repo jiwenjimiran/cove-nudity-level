@@ -3,7 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>Cove.NudityLevel</AssemblyName>
     <Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings>
-    <EnableDynamicLoading>true</EnableDynamicLoading><Version>1.2.0</Version>
+    <EnableDynamicLoading>true</EnableDynamicLoading><Version>1.2.1</Version>
     <CoveSourceRoot Condition="'$(CoveSourceRoot)' == ''">$(MSBuildThisFileDirectory)..\..\..\cove</CoveSourceRoot>
   </PropertyGroup>
   <ItemGroup>

@@ -89,8 +89,13 @@ var modelLists = JsonSerializer.Deserialize<Dictionary<string, string[]>>(File.R
 Check(modelLists.Values.SelectMany(names => names).Distinct().Order().SequenceEqual(v2.Tags.Select(t => t.Name).Order()), "all four supplied model lists covered exactly, with 69 deduplicated");
 foreach (var tag in v2.Tags) Check(V2Level(tag.Name) == (tag.Bucket == "neutral" ? tag.EstablishesCoverage ? "none" : "unknown" : tag.Bucket), "v2 individual classification: " + tag.Name);
 Check(V2Level("Pussy", "Nipples") == "full" && V2Level("Asshole", "Nipples") == "full" && V2Level("Pussy Hair", "Nipples") == "high", "v2 preserves body Full combinations and Pussy Hair exception");
-foreach (var name in new[] { "Upskirt", "Undressing", "Sucking Toy/Dildo" }) Check(V2Level(name) == "medium", "requested Medium override: " + name);
-Check(V2Level("Cum on Person") == "high" && V2Level("Cum Swapping") == "high" && V2Level("Catheter") == "full", "requested fluid and catheter overrides");
+foreach (var name in new[] { "Upskirt", "Undressing" }) Check(V2Level(name) == "medium", "requested Medium override: " + name);
+Check(V2Level("Cum on Person") == "high" && V2Level("Cum Swapping") == "high", "requested fluid overrides");
+foreach (var name in new[] { "Chastity", "Chastity (Male)", "Chastity (Female)", "Metal Chastity", "Plastic Chastity", "Cum in Chastity",
+    "Footjob", "Pussy Rubbing", "Gloryhole", "Stand Cradle", "Catheter", "Alligator Clamp", "Weights", "Clover Clamps", "Clothes Pin", "Vibrating", "Nipple Clamps", "Sucking Toy/Dildo" }) {
+    Check(V2Level(name) == "unknown", "neutralized default has no standalone signal: " + name);
+    Check(Classification.Level(v2, [V2Id(name)], true) == "none", "neutralized tag leaves completed body analysis None: " + name);
+}
 Evidence Proxy(string tag, string model, string source = "ext:ai.tagging") => new(1, V2Id(tag), source, model, "");
 Check(Classification.FromEvidence(v2, [Proxy("Vaginal Fucking", "actions")], false, new HashSet<string>()) == "full", "action-only AI sex establishes Full without body analysis");
 Check(Classification.FromEvidence(v2, [Proxy("Missionary", "positions")], false, new HashSet<string>()) == "full", "position-only AI sex establishes Full without body analysis");
@@ -109,7 +114,17 @@ try { (v2 with { Rules = [compound with { Groups = [[]] }] }).Validate(); throw 
 try { (v2 with { Rules = [compound with { Groups = [["missing"]] }] }).Validate(); throw new Exception("accepted missing rule tag"); } catch (ArgumentException) { passed++; }
 var legacy = settings with { CombinationEnabled = false, Tags = [..settings.Tags.Where(t => t.Name != "Belly Button"), new("custom:handjob", "Handjob", "low", 999)] };
 var migrated = legacy.Upgrade();
-Check(migrated.SchemaVersion == 2 && migrated.DefaultsRevision == 2 && !migrated.Rules!.Single().Enabled, "v1 settings and disabled combination migrate to v2");
+Check(migrated.SchemaVersion == 2 && migrated.DefaultsRevision == 3 && !migrated.Rules!.Single().Enabled, "v1 settings and disabled combination migrate to v2");
+var previousDefaults = v2 with { DefaultsRevision = 2, Tags = v2.Tags.Where(t => t.Name != "Catheter").Select(t => t.Name switch {
+    "Chastity" => t with { Bucket = "high", EstablishesCoverage = true },
+    "Footjob" => t with { Bucket = "full", EstablishesCoverage = true },
+    "Weights" => t with { Bucket = "medium", EstablishesCoverage = true }, _ => t }).ToList() };
+var updatedDefaults = previousDefaults.Upgrade();
+Check(updatedDefaults.Tags.Single(t => t.Name == "Chastity").Bucket == "neutral" && !updatedDefaults.Tags.Single(t => t.Name == "Chastity").EstablishesCoverage
+    && updatedDefaults.Tags.Single(t => t.Name == "Footjob").Bucket == "neutral", "upgrade updates old factory assignments to no-signal Neutral");
+Check(updatedDefaults.Tags.Single(t => t.Name == "Weights").Bucket == "medium" && !updatedDefaults.Tags.Any(t => t.Name == "Catheter")
+    && updatedDefaults.Rules == previousDefaults.Rules, "upgrade preserves customized buckets, removals and compound rules");
+Check(updatedDefaults.Upgrade().Tags.SequenceEqual(updatedDefaults.Tags), "neutral defaults migration runs only once");
 Check(!migrated.Tags.Any(t => t.Name == "Belly Button") && migrated.Tags.Single(t => t.Name == "Handjob").Bucket == "low", "migration preserves removals and custom proxy assignments");
 var editedLegacy = settings with { Tags = settings.Tags.Select(t => t.Name == "Pussy Hair" ? t with { Genital = true } : t).ToList() };
 Check(editedLegacy.Upgrade().Rules!.Single().Groups[0].Contains("default:pussy hair"), "migration preserves edited legacy combination memberships");

@@ -32,11 +32,11 @@ public sealed record NuditySettings(int SchemaVersion, bool CombinationEnabled, 
         void Add(string bucket, string names) {
             foreach (var name in names.Split('|')) tags.Add(new("default:" + name.ToLowerInvariant(), name, bucket, EstablishesCoverage: bucket != "neutral"));
         }
-        Add("full", "69|Doggystyle|Facesitting|Cowgirl|Rev Cowgirl|Missionary|G Missionary|Stand Cradle|Orgy|Anal Fucking|Ass Licking|Ass Penetration|Ball Licking/Sucking|Blowjob|Cumshot|Deepthroat|Double Penetration|Fingering|Fisting|Footjob|Gangbang|Gloryhole|Handjob|Licking Penis|Masturbation|Pussy Licking (Clearly Visible)|Pussy Licking|Pussy Rubbing|Titjob|Tribbing/Scissoring|Vaginal Penetration|Vaginal Fucking|Pegging|Anal Hook|Tied Penis|Tied Balls|Catheter");
-        Add("high", "Cum on Person|Cum Swapping|Pissing|Wet (Genitals)|Vibrating|Chastity|Nipple Clamps|Chastity (Male)|Chastity (Female)|Metal Chastity|Plastic Chastity|Cum in Chastity|Crotch Roped|Clover Clamps|Clothes Pin|Weights|Alligator Clamp");
-        Add("medium", "Upskirt|Grabbing Ass|Grabbing Boobs|Sucking Toy/Dildo|Undressing|Bondaged Boobs");
+        Add("full", "69|Doggystyle|Facesitting|Cowgirl|Rev Cowgirl|Missionary|G Missionary|Orgy|Anal Fucking|Ass Licking|Ass Penetration|Ball Licking/Sucking|Blowjob|Cumshot|Deepthroat|Double Penetration|Fingering|Fisting|Gangbang|Handjob|Licking Penis|Masturbation|Pussy Licking (Clearly Visible)|Pussy Licking|Titjob|Tribbing/Scissoring|Vaginal Penetration|Vaginal Fucking|Pegging|Anal Hook|Tied Penis|Tied Balls");
+        Add("high", "Cum on Person|Cum Swapping|Pissing|Wet (Genitals)|Crotch Roped");
+        Add("medium", "Upskirt|Grabbing Ass|Grabbing Boobs|Undressing|Bondaged Boobs");
         Add("low", "Sucking Fingers");
-        Add("neutral", "Kneeling|Laying Down|Bent Over|Sitting|Squatting|Flexible|FPOV|MPOV|BTS|CloseUp|1F|1F1M|2F|2F1M|3F|1F2M|1M|2M|3M|Grabbing Hair/Head|Kissing|Female Bondage|Male Bondage|Bondage|Choking|Gag|Pain|Unused1|Ball Gag|Ring Gag|Harness Gag|Bit Gag|Unused2|Muzzle Gag|Dildo Gag|Inflatable Gag|Tape Gag|Rope Bondage|Metal Bondage|Leather Bondage|Collared|Unused3|Blindfolded|Chair Tied|Straight Jacket|Yoke|Whip|Flogger|Electric Torture|Crush Torture|Arm Binder|Rope Collar|Leather Collar|Metal Collar|Unused4|Leash|Handcuffed");
+        Add("neutral", "Kneeling|Laying Down|Bent Over|Sitting|Squatting|Flexible|FPOV|MPOV|BTS|CloseUp|1F|1F1M|2F|2F1M|3F|1F2M|1M|2M|3M|Grabbing Hair/Head|Kissing|Female Bondage|Male Bondage|Bondage|Choking|Gag|Pain|Unused1|Ball Gag|Ring Gag|Harness Gag|Bit Gag|Unused2|Muzzle Gag|Dildo Gag|Inflatable Gag|Tape Gag|Rope Bondage|Metal Bondage|Leather Bondage|Collared|Unused3|Blindfolded|Chair Tied|Straight Jacket|Yoke|Whip|Flogger|Electric Torture|Crush Torture|Arm Binder|Rope Collar|Leather Collar|Metal Collar|Unused4|Leash|Handcuffed|Stand Cradle|Footjob|Gloryhole|Pussy Rubbing|Catheter|Chastity|Chastity (Male)|Chastity (Female)|Metal Chastity|Plastic Chastity|Cum in Chastity|Vibrating|Nipple Clamps|Clover Clamps|Clothes Pin|Weights|Alligator Clamp|Sucking Toy/Dildo");
         return tags;
     }
     private static CompoundRule LegacyRule(NuditySettings settings) => new("default:full-combination", "Genital + nipples", "full", settings.CombinationEnabled && settings.Tags.Any(t => t.Genital) && settings.Tags.Any(t => t.Nipple),
@@ -52,11 +52,37 @@ public sealed record NuditySettings(int SchemaVersion, bool CombinationEnabled, 
             var names = upgraded.Tags.Select(t => t.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
             upgraded = upgraded with { DefaultsRevision = 2, Tags = [..upgraded.Tags, ..ProxyDefaults().Where(t => !keys.Contains(t.Key) && !names.Contains(t.Name))] };
         }
+        if (upgraded.DefaultsRevision < 3) {
+            // Update factory assignments only; preserve moved/custom tags, IDs, removals and rules.
+            var previous = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
+                ["default:stand cradle"] = "full",
+                ["default:footjob"] = "full",
+                ["default:gloryhole"] = "full",
+                ["default:pussy rubbing"] = "full",
+                ["default:catheter"] = "full",
+                ["default:chastity"] = "high",
+                ["default:chastity (male)"] = "high",
+                ["default:chastity (female)"] = "high",
+                ["default:metal chastity"] = "high",
+                ["default:plastic chastity"] = "high",
+                ["default:cum in chastity"] = "high",
+                ["default:vibrating"] = "high",
+                ["default:nipple clamps"] = "high",
+                ["default:clover clamps"] = "high",
+                ["default:clothes pin"] = "high",
+                ["default:weights"] = "high",
+                ["default:alligator clamp"] = "high",
+                ["default:sucking toy/dildo"] = "medium",
+            };
+            upgraded = upgraded with { DefaultsRevision = 3, Tags = upgraded.Tags.Select(tag =>
+                previous.TryGetValue(tag.Key, out var bucket) && tag.Bucket == bucket && tag.EstablishesCoverage
+                    ? tag with { Bucket = "neutral", EstablishesCoverage = false } : tag).ToList() };
+        }
         return upgraded.Validate();
     }
     public NuditySettings Validate()
     {
-        if (SchemaVersion is not (1 or 2) || DefaultsRevision is < 0 or > 2 || Tags is null || Tags.Count > 2000) throw new ArgumentException("Unsupported settings version or too many tags (maximum 2000).");
+        if (SchemaVersion is not (1 or 2) || DefaultsRevision is < 0 or > 3 || Tags is null || Tags.Count > 2000) throw new ArgumentException("Unsupported settings version or too many tags (maximum 2000).");
         if (Tags.Any(t => t is null || string.IsNullOrWhiteSpace(t.Key) || t.Key.Length > 256 || string.IsNullOrWhiteSpace(t.Name) || t.Name.Length > 512
             || !Buckets.Contains(t.Bucket) || t.TagId is <= 0)) throw new ArgumentException("Each tag needs a unique key, name, valid bucket, and positive database ID when supplied.");
         if (Tags.Select(t => t.Key.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Count() != Tags.Count

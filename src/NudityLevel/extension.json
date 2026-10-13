@@ -1,7 +1,7 @@
 {
   "id": "io.github.jiwenjimiran.nudity-level",
   "name": "Nudity Level",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Filter videos and images by configurable AI-first nudity levels.",
   "author": "jiwenji",
   "url": "https://github.com/jiwenjimiran/cove-nudity-level",
